@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Martingale Probability Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center md:text-left">
+            <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                Martingale Monte Carlo Simulator
+            </h1>
+            <p class="text-slate-400">Single-Zero Roulette Strategy Analysis (18/37 Win Rate)</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <div class="lg:col-span-1 space-y-4">
+                <div class="glass-card p-6 rounded-2xl">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        Parameters
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Bankroll ($)</label>
+                            <input type="number" id="input-bankroll" value="400" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Base Bet ($)</label>
+                            <input type="number" id="input-base-bet" value="5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Profit Goal ($)</label>
+                            <input type="number" id="input-profit-goal" value="100" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Table Max ($)</label>
+                            <input type="number" id="input-table-max" value="10000" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Trials</label>
+                            <input type="number" id="input-trials" value="5000" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        </div>
+                        <button id="run-btn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 rounded-lg transition-colors shadow-lg shadow-emerald-900/20">
+                            Run Simulation
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-card p-4 rounded-2xl bg-slate-800/30">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-400 italic">Survival Steps:</span>
+                        <span id="stat-survival-steps" class="font-bold text-cyan-400">--</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">
+                        The max consecutive losses you can absorb from start before the next bet exceeds your bankroll or table limit.
+                    </p>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3 space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="glass-card p-4 rounded-2xl text-center">
+                        <p class="text-xs text-slate-400 uppercase mb-1">Success Rate</p>
+                        <p id="metric-success-rate" class="text-2xl font-bold text-emerald-400">--</p>
+                    </div>
+                    <div class="glass-card p-4 rounded-2xl text-center">
+                        <p class="text-xs text-slate-400 uppercase mb-1">Risk of Ruin</p>
+                        <p id="metric-ruin-rate" class="text-2xl font-bold text-rose-400">--</p>
+                    </div>
+                    <div class="glass-card p-4 rounded-2xl text-center">
+                        <p class="text-xs text-slate-400 uppercase mb-1">Session EV (Avg)</p>
+                        <p id="metric-ev" class="text-2xl font-bold text-cyan-400">--</p>
+                        <p id="metric-total-profit" class="text-[10px] text-slate-500">Total: --</p>
+                    </div>
+                    <div class="glass-card p-4 rounded-2xl text-center">
+                        <p class="text-xs text-slate-400 uppercase mb-1">Max Loss Streak</p>
+                        <p id="metric-max-streak" class="text-2xl font-bold text-slate-200">--</p>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl min-h-[400px]">
+                    <h3 class="text-sm font-semibold mb-4 text-slate-400 uppercase tracking-widest">Last Trial Bankroll History</h3>
+                    <canvas id="bankrollChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        function calculateSurvivalSteps(bankroll, baseBet, tableMax) {
+            let tempBankroll = bankroll;
+            let tempBet = baseBet;
+            let steps = 0;
+
+            while (true) {
+                // If we can't place the CURRENT bet, we didn't survive the PREVIOUS step.
+                // However, logic usually implies "how many losses can I take?".
+                // If I lose 1st bet (5), I need to bet 10. If I can't bet 10, I survived 1 loss.
+                if (tempBet > tempBankroll || tempBet > tableMax) {
+                    break;
+                }
+                tempBankroll -= tempBet;
+                tempBet *= 2;
+                steps++;
+            }
+            return steps;
+        }
+
+        function runSimulation() {
+            // Inputs
+            const startBankroll = parseFloat(document.getElementById('input-bankroll').value);
+            const baseBet = parseFloat(document.getElementById('input-base-bet').value);
+            const profitGoal = parseFloat(document.getElementById('input-profit-goal').value);
+            const tableMax = parseFloat(document.getElementById('input-table-max').value);
+            const numTrials = parseInt(document.getElementById('input-trials').value);
+
+            const targetBankroll = startBankroll + profitGoal;
+            const WIN_PROB = 18 / 37;
+
+            // Tracking
+            let totalSuccesses = 0;
+            let totalRuins = 0;
+            let totalProfitAcrossTrials = 0;
+            let globalMaxLossStreak = 0;
+            let lastTrialHistory = [];
+
+            // 1. Calculate and Update Survival Steps UI
+            const steps = calculateSurvivalSteps(startBankroll, baseBet, tableMax);
+            document.getElementById('stat-survival-steps').innerText = steps;
+
+            // 2. Monte Carlo Loop
+            for (let t = 0; t < numTrials; t++) {
+                let currentBankroll = startBankroll;
+                let currentBet = baseBet;
+                let sessionHistory = [startBankroll];
+                let currentLossStreak = 0;
+
+                // Safety cap to prevent infinite loops, though ruin/success conditions make it near impossible
+                const SPIN_CAP = 200000; 
+                let spins = 0;
+
+                while (spins < SPIN_CAP) {
+                    // Check End Conditions BEFORE betting
+                    if (currentBankroll >= targetBankroll) {
+                        totalSuccesses++;
+                        break;
+                    }
+                    if (currentBet > currentBankroll || currentBet > tableMax) {
+                        totalRuins++;
+                        break;
+                    }
+
+                    // Perform Spin
+                    spins++;
+                    const win = Math.random() < WIN_PROB;
+
+                    if (win) {
+                        currentBankroll += currentBet;
+                        currentBet = baseBet;
+                        currentLossStreak = 0;
+                    } else {
+                        currentBankroll -= currentBet;
+                        currentBet *= 2;
+                        currentLossStreak++;
+                        if (currentLossStreak > globalMaxLossStreak) globalMaxLossStreak = currentLossStreak;
+                    }
+
+                    if (t === numTrials - 1) {
+                        sessionHistory.push(currentBankroll);
+                    }
+                }
+
+                totalProfitAcrossTrials += (currentBankroll - startBankroll);
+                
+                if (t === numTrials - 1) {
+                    lastTrialHistory = sessionHistory;
+                }
+            }
+
+            // 3. Update UI Metrics
+            const successRate = (totalSuccesses / numTrials) * 100;
+            const ruinRate = (totalRuins / numTrials) * 100;
+            const avgProfit = totalProfitAcrossTrials / numTrials;
+
+            document.getElementById('metric-success-rate').innerText = successRate.toFixed(2) + '%';
+            document.getElementById('metric-ruin-rate').innerText = ruinRate.toFixed(2) + '%';
+            document.getElementById('metric-ev').innerText = '$' + avgProfit.toFixed(2);
+            document.getElementById('metric-total-profit').innerText = 'Total: $' + totalProfitAcrossTrials.toLocaleString();
+            document.getElementById('metric-max-streak').innerText = globalMaxLossStreak;
+
+            updateChart(lastTrialHistory, targetBankroll, startBankroll);
+        }
+
+        function updateChart(data, target, start) {
+            const ctx = document.getElementById('bankrollChart').getContext('2d');
+            
+            if (chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((_, i) => i),
+                    datasets: [{
+                        label: 'Bankroll',
+                        data: data,
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true,
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Target',
+                        data: Array(data.length).fill(target),
+                        borderColor: 'rgba(34, 211, 238, 0.5)',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            title: { display: true, text: 'Spins', color: '#64748b' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            title: { display: true, text: 'Balance ($)', color: '#64748b' }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.getElementById('run-btn').addEventListener('click', runSimulation);
+
+        // Initial Run
+        window.onload = runSimulation;
+    </script>
+</body>
+</html>

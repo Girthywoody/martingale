@@ -109,9 +109,6 @@
             let steps = 0;
 
             while (true) {
-                // If we can't place the CURRENT bet, we didn't survive the PREVIOUS step.
-                // However, logic usually implies "how many losses can I take?".
-                // If I lose 1st bet (5), I need to bet 10. If I can't bet 10, I survived 1 loss.
                 if (tempBet > tempBankroll || tempBet > tableMax) {
                     break;
                 }
@@ -150,19 +147,22 @@
                 let currentBet = baseBet;
                 let sessionHistory = [startBankroll];
                 let currentLossStreak = 0;
+                let outcome = null;
 
                 // Safety cap to prevent infinite loops, though ruin/success conditions make it near impossible
-                const SPIN_CAP = 200000; 
+                const SPIN_CAP = 200000;
                 let spins = 0;
 
                 while (spins < SPIN_CAP) {
                     // Check End Conditions BEFORE betting
                     if (currentBankroll >= targetBankroll) {
                         totalSuccesses++;
+                        outcome = 'success';
                         break;
                     }
                     if (currentBet > currentBankroll || currentBet > tableMax) {
                         totalRuins++;
+                        outcome = 'ruin';
                         break;
                     }
 
@@ -186,8 +186,13 @@
                     }
                 }
 
+                if (outcome === null) {
+                    totalRuins++;
+                    outcome = 'ruin';
+                }
+
                 totalProfitAcrossTrials += (currentBankroll - startBankroll);
-                
+
                 if (t === numTrials - 1) {
                     lastTrialHistory = sessionHistory;
                 }
